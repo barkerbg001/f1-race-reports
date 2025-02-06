@@ -49,7 +49,7 @@ def download_headshot(image_url, driver_id):
     return None  # Return None if download fails
 
 # 📄 CREATE PDF
-def create_pdf(drivers_data, filename="f1_drivers_report.pdf"):
+def create_pdf(drivers_data, filename="f1_drivers_report_heads.pdf"):
     """Generates a PDF with all F1 drivers, headshots, and team-colored rows."""
     doc = SimpleDocTemplate(filename, pagesize=landscape(A4))
     elements = []
