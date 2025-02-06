@@ -1,8 +1,6 @@
 import requests
-from io import BytesIO
-from PIL import Image
 from reportlab.lib.pagesizes import A4, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 import os
@@ -24,33 +22,9 @@ def add_page_number(canvas, doc):
     canvas.setFont("Helvetica", 9)
     canvas.drawRightString(780, 20, text)
 
-# 🏎 DOWNLOAD DRIVER HEADSHOTS
-def download_headshot(image_url, driver_id):
-    """Downloads and resizes driver headshots only if not already downloaded."""
-    if not image_url:
-        return None  # No headshot available
-    
-    file_path = f"headshots/{driver_id}.png"
-    os.makedirs("headshots", exist_ok=True)  # Ensure folder exists
-
-    if os.path.exists(file_path):
-        return file_path  # Return existing file path if already downloaded
-
-    try:
-        response = requests.get(image_url, stream=True)
-        if response.status_code == 200:
-            img = Image.open(BytesIO(response.content))
-            img = img.resize((50, 50))  # Resize for PDF
-            img.save(file_path)
-            return file_path
-    except Exception as e:
-        print(f"⚠️ Failed to download image for {driver_id}: {e}")
-    
-    return None  # Return None if download fails
-
 # 📄 CREATE PDF
 def create_pdf(drivers_data, filename="f1_drivers_report.pdf"):
-    """Generates a PDF with all F1 drivers, headshots, and team-colored rows."""
+    """Generates a PDF with all F1 drivers and team-colored rows."""
     doc = SimpleDocTemplate(filename, pagesize=landscape(A4))
     elements = []
     styles = getSampleStyleSheet()
@@ -58,6 +32,7 @@ def create_pdf(drivers_data, filename="f1_drivers_report.pdf"):
     # 🏎 ADD F1 LOGO
     logo_path = "f1_logo.png"
     if os.path.exists(logo_path):
+        from reportlab.platypus import Image as RLImage
         logo = RLImage(logo_path, width=100, height=50)
         elements.append(logo)
 
@@ -67,18 +42,11 @@ def create_pdf(drivers_data, filename="f1_drivers_report.pdf"):
     elements.append(Spacer(1, 12))
 
     # 📊 TABLE HEADERS
-    table_data = [["Headshot", "Driver #", "Full Name", "Abbreviation", "Team", "DOB", "Nationality"]]
+    table_data = [["Driver #", "Full Name", "Abbreviation", "Team", "DOB", "Nationality"]]
 
     # 📊 POPULATE TABLE
     row_colors = []
     for driver in drivers_data:
-        driver_id = driver.get("driver_id", f"unknown_{driver.get('driver_number', 'N/A')}")  # Fallback ID
-        headshot_url = driver.get("headshot_url", None)  # Handle missing headshot
-
-        # Handle headshot download
-        headshot = download_headshot(headshot_url, driver_id) if headshot_url else None
-        image = RLImage(headshot, width=50, height=50) if headshot else "N/A"
-
         # Handle missing or incorrect team color
         hex_color = driver.get("team_colour")
         if not hex_color or hex_color.lower() == "none":
@@ -86,7 +54,6 @@ def create_pdf(drivers_data, filename="f1_drivers_report.pdf"):
         team_color = colors.HexColor(f"#{hex_color}")
 
         table_data.append([
-            image,
             driver.get("driver_number", "N/A"),
             f"{driver.get('first_name', 'N/A')} {driver.get('last_name', 'N/A')}",
             driver.get("name_acronym", "N/A"),
@@ -97,7 +64,7 @@ def create_pdf(drivers_data, filename="f1_drivers_report.pdf"):
         row_colors.append(team_color)
 
     # 📌 CREATE TABLE
-    col_widths = [60, 60, 150, 80, 140, 100, 100]
+    col_widths = [60, 150, 80, 140, 100, 100]
     table = Table(table_data, colWidths=col_widths)
 
     # 🎨 STYLE TABLE (Alternating Team Colors)
